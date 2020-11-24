@@ -71,50 +71,51 @@ if __name__ == '__main__':
     # convert to gray scale
     img2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # create data frame in which each column is a filter and each row is a pixel
-    df = pd.DataFrame()
-
-    # save original image as a vector and insert to df
-    vec_img2 = img2.reshape(-1)
-    df['Original Image'] = vec_img2
-
-    # sample ground truth of the object and the background
-    # use to determine if a filter contribute to the segmentation
-    # use also the evaluate the accuracy of the resulting segmentation
-    sampled_pixels = sampleGroundTruth(img2)
-
-    # generate filter bank
-    kernels = generateGaborFiltersBank()
-
-    classified_correctly = 0  # keeps the number of correctly classified pixels (from the sampled pixels)
-
-    # generate Gabor features
-    for i, kernel in enumerate(kernels):
-
-        gabor_label = 'Gabor' + str(i)  # label of column in the data frame
-        # filter the image
-        filtered_image = cv2.filter2D(img2, cv2.CV_8UC3, kernel)
-        # add the filtered image as vector to data frame
-        vec_filtered_img2 = filtered_image.reshape(-1)
-        df[gabor_label] = vec_filtered_img2
-
-        classified_correctly_new = correctlyClassified(df, sampled_pixels)
-        if classified_correctly_new > classified_correctly:
-            classified_correctly = classified_correctly_new
-            # save the filtered img
-            cv2.imwrite('gabor_filtered_images/' + img_name + '/' + gabor_label + '.jpg', filtered_image)
-
-        else:
-            df.drop(columns=gabor_label, inplace=True)
-
-        # plt.imshow(filtered_image)
-        # plt.show()
-
-
-
-    df.head()
-    df.to_csv(img_name+'.csv', index=False)
-    #%%
+# #%%
+#     # create data frame in which each column is a filter and each row is a pixel
+#     df = pd.DataFrame()
+#
+#     # save original image as a vector and insert to df
+#     vec_img2 = img2.reshape(-1)
+#     df['Original Image'] = vec_img2
+#
+#     # sample ground truth of the object and the background
+#     # use to determine if a filter contribute to the segmentation
+#     # use also the evaluate the accuracy of the resulting segmentation
+#     sampled_pixels = sampleGroundTruth(img2)
+#
+#     # generate filter bank
+#     kernels = generateGaborFiltersBank()
+#
+#     classified_correctly = 0  # keeps the number of correctly classified pixels (from the sampled pixels)
+#
+#     # generate Gabor features
+#     for i, kernel in enumerate(kernels):
+#
+#         gabor_label = 'Gabor' + str(i)  # label of column in the data frame
+#         # filter the image
+#         filtered_image = cv2.filter2D(img2, cv2.CV_8UC3, kernel)
+#         # add the filtered image as vector to data frame
+#         vec_filtered_img2 = filtered_image.reshape(-1)
+#         df[gabor_label] = vec_filtered_img2
+#
+#         classified_correctly_new = correctlyClassified(df, sampled_pixels)
+#         if classified_correctly_new > classified_correctly:
+#             classified_correctly = classified_correctly_new
+#             # save the filtered img
+#             cv2.imwrite('gabor_filtered_images/' + img_name + '/' + gabor_label + '.jpg', filtered_image)
+#
+#         else:
+#             df.drop(columns=gabor_label, inplace=True)
+#
+#         # plt.imshow(filtered_image)
+#         # plt.show()
+#
+#
+#
+#     df.head()
+#     df.to_csv(img_name+'.csv', index=False)
+#%%
 
     df = pd.read_csv(img_name+'.csv')
     df['sum'] = np.sum(df.values,axis=1)
@@ -124,6 +125,7 @@ if __name__ == '__main__':
 
     # creating mask from the classification
     mask = np.uint8(kmeans.labels_.reshape(img2.shape))
+    mask = cv2.GaussianBlur(mask, (9, 9), 0)  # blur mask to get rid of "noise" in the segmentation
     segmented_img = cv2.bitwise_and(img_RGB,img_RGB,mask=mask)
     mask_inverse = np.uint8(np.ones(mask.shape)-mask)  # creating the inverse of the mask
     segmented_img_inverse = cv2.bitwise_and(img_RGB,img_RGB,mask=mask_inverse)
@@ -146,5 +148,5 @@ if __name__ == '__main__':
     plt.axis(False)
     plt.show()
 
-    cv2.imwrite('segmented_results/'+img_name+'.jpg', segmented_img)
-    # fig.savefig('segmented_results/'+img_name+'_kernel_5.jpg')
+    # cv2.imwrite('segmented_results/'+img_name+'.jpg', segmented_img)
+    fig.savefig('segmented_results/'+img_name+'_kernel_5.jpg')
