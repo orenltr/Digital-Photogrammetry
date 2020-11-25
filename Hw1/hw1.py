@@ -13,16 +13,16 @@ def sampleGroundTruth(img, number_of_samples):
 
     # sampling object and background pixels
 
-    plt.title('sample ',number_of_samples/2, ' points of the object', fontweight="bold")
+    plt.title('sample ' + str(int(number_of_samples/2)) + ' points of the object', fontweight="bold")
     plt.imshow(img2)
-    object_points = plt.ginput(number_of_samples/2)
+    object_points = plt.ginput(int(number_of_samples/2))
     object_points = np.array(object_points, dtype=int)
     print(object_points)
     plt.close()
 
-    plt.title('sample ',number_of_samples/2, 'points of the background', fontweight="bold")
+    plt.title('sample ' + str(int(number_of_samples/2)) + ' points of the background', fontweight="bold")
     plt.imshow(img2)
-    background_points = plt.ginput(number_of_samples/2)
+    background_points = plt.ginput(int(number_of_samples/2))
     background_points = np.array(background_points, dtype=int)
     print(background_points)
 
@@ -39,6 +39,7 @@ def sampleGroundTruth(img, number_of_samples):
 
 def generateGaborFiltersBank():
 
+    gabor_labels = []
     kernels = []  # holds the kernels we will generate
     for theta in range(8):  # define number of thetas (orientation of the filter)
         theta = theta / 8 * np.pi
@@ -49,7 +50,11 @@ def generateGaborFiltersBank():
                     psi = 0  # phase offset
                     kernel = cv2.getGaborKernel((ksize, ksize), sigma, theta, lamda, gamma, psi, ktype=cv2.CV_32F)
                     kernels.append(kernel)
-    return kernels
+
+                    formatted_theta = "{:.2f}".format(theta)
+                    formatted_lamda = "{:.2f}".format(lamda)
+                    gabor_labels.append(str(formatted_theta) + '_' + str(sigma)+'_' + str(formatted_lamda) + '_' + str(gamma))
+    return kernels, gabor_labels
 
 
 def correctlyClassified(df, sampled_pixels):
@@ -63,7 +68,7 @@ if __name__ == '__main__':
 
     # load image
     # img_path = askopenfilenames(title='Select Input File')
-    img_name = '20201121_143402'  # 20201121_143330, 20201121_143257, 20201121_143402
+    img_name = '20201121_143330'  # 20201121_143330, 20201121_143257, 20201121_143402
     img = cv2.imread(img_name+'.jpg')
     img = cv2.resize(img, (200, 300))  # resize image to ease calculations
 
@@ -86,19 +91,19 @@ if __name__ == '__main__':
     sampled_pixels = sampleGroundTruth(img2,number_of_samples)
 
     # generate filter bank
-    kernels = generateGaborFiltersBank()
+    kernels, gabor_labels = generateGaborFiltersBank()
 
     classified_correctly = 0  # keeps the number of correctly classified pixels (from the sampled pixels)
 
     # generate Gabor features
     for i, kernel in enumerate(kernels):
 
-        gabor_label = 'Gabor' + str(i)  # label of column in the data frame
+        # gabor_label = 'Gabor' + str(i)  # label of column in the data frame
         # filter the image
         filtered_image = cv2.filter2D(img2, cv2.CV_8UC3, kernel)
         # add the filtered image as vector to data frame
         vec_filtered_img2 = filtered_image.reshape(-1)
-        df[gabor_label] = vec_filtered_img2
+        df[gabor_labels[i]] = vec_filtered_img2
 
         classified_correctly_new = correctlyClassified(df, sampled_pixels)
         if classified_correctly_new > classified_correctly:
@@ -106,13 +111,11 @@ if __name__ == '__main__':
             accuracy_rate = classified_correctly/number_of_samples *100
             print(accuracy_rate, ' % of pixels been classified correctly')
             # save the filtered img
-            cv2.imwrite('gabor_filtered_images/' + img_name + '/' + gabor_label + '.jpg', filtered_image)
+            cv2.imwrite('gabor_filtered_images/' + img_name + '/' + gabor_labels[i] + '.jpg', filtered_image)
 
         else:
-            df.drop(columns=gabor_label, inplace=True)
+            df.drop(columns=gabor_labels[i], inplace=True)
 
-        # plt.imshow(filtered_image)
-        # plt.show()
 
 
 
@@ -149,7 +152,9 @@ if __name__ == '__main__':
     plt.imshow(segmented_img_inverse)
     plt.title('Segment 2')
     plt.axis(False)
+
+    fig.suptitle(str(accuracy_rate) + ' % of pixels have been classified correctly\n'
+                                      + str(df.shape[1]-2) + ' Gabor filters been used', fontsize=16)
     plt.show()
 
-    # cv2.imwrite('segmented_results/'+img_name+'.jpg', segmented_img)
-    fig.savefig('segmented_results/'+img_name+'_kernel_9.jpg')
+    fig.savefig('segmented_results/'+img_name+'_optimized.jpg')
